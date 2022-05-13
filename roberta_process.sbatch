@@ -26,7 +26,7 @@ cd /users5/kxiong/jsliu/emnlp2020-debiasing-unknown/src
 for this_seed in 112 334 556 667 778 889
 do
 CUDA_VISIBLE_DEVICES=0 python train_roberta_distill.py \
- --output_dir ../experiments_shallow_mnli/roberta/roberta_base_sampled2K_seed$this_seed \
+  --model_type roberta --output_dir ../experiments_shallow_mnli/roberta/roberta_base_sampled2K_seed$this_seed \
   --do_eval --do_eval_on_train --mode none\
  --seed 111 --which_bias hans  \
    --get_bert_output --shallow_feature_file shallow_features/shallow_mnli_train_5epoch_roberta.pkl \

@@ -1,0 +1,9 @@
+
+5/11：
+    ·需要对比一下train_roberta.py和train_bert_features.py，在main model的训练中引入
+    (此前修改已commit至 new branch second commit)
+    ·后续可以把bert引用的库从pytorch_pretrained_bert更新为transformer，但该工作似乎优先
+    级较低。
+    ·注意func目录下的各函数来自此前train的非main部分，分别用于加载数据、转换为feature、定
+    义超参数
+

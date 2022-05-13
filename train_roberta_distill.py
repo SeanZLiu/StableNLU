@@ -70,6 +70,17 @@ NLI_LABEL_MAP["hidden"] = NLI_LABEL_MAP["entailment"]
 
 TextPairExample = namedtuple("TextPairExample", ["id", "premise", "hypothesis", "label"])
 
+def handle_shallow_feature(shallow_file_path,k):
+    """
+    该函数用来加载虚假特征文件，并按照对应数据集id:feature的形式存于字典中并输出
+    """
+    load_features = pickle.load(open(shallow_file_path, 'rb'))
+    shallow_features = {}
+    # 利用命令行参数选择前k行，并平均后加入到新集合
+    for key in load_features.keys():
+        exam_feature = np.array(load_features[key][:k])
+        shallow_features[key] = np.mean(exam_feature, 0)
+    return shallow_features
 
 def load_easy_hard(prefix="", no_mismatched=False):
     all_datasets = []
@@ -284,12 +295,13 @@ def load_jsonl(file_path, data_dir, sample=None):
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, example_id, input_ids, segment_ids, label_id, bias):
+    def __init__(self, example_id, input_ids, segment_ids, label_id, bias, shallow_feature=None):
         self.example_id = example_id
         self.input_ids = input_ids
         self.segment_ids = segment_ids
         self.label_id = label_id
         self.bias = bias
+        self.shallow_feature = shallow_feature
 
 # todo
 class AutoExampleConverter(Processor):
@@ -309,7 +321,8 @@ class AutoExampleConverter(Processor):
                     input_ids=np.array(encoded_input['input_ids']),
                     segment_ids=np.array(encoded_input['token_type_ids']),
                     label_id=example.label,
-                    bias=None
+                    bias=None,
+                    shallow_feature=None
                 ))
         return features
 
@@ -354,7 +367,8 @@ class ExampleConverter(Processor):
                     input_ids=np.array(input_ids),
                     segment_ids=np.array(segment_ids),
                     label_id=example.label,
-                    bias=None
+                    bias=None,
+                    shallow_feature=None
                 ))
         return features
 
@@ -395,7 +409,6 @@ def collate_input_features(batch: List[InputFeatures]):
 
     if batch[0].bias is None:
         return example_ids, input_ids, mask, segment_ids, label_ids
-
     teacher_probs = torch.tensor([x.teacher_probs for x in batch])
     bias = torch.tensor([x.bias for x in batch])
 

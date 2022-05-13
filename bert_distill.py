@@ -23,8 +23,10 @@ class MyErnie(BPT):
         # todo 取出pooled_output
         pooled_output = self.ernie(
             input_ids, attention_mask=attention_mask,token_type_ids=token_type_ids)[1]
-
-        logits = self.classifier(self.dropout(pooled_output))
+        if bias_features is None:
+            logits = self.classifier(self.dropout(pooled_output))
+        else:
+            logits = self.classifier(self.dropout(pooled_output + bias_features))
 
         if labels is None:
             return logits
@@ -54,7 +56,10 @@ class MyRoberta(BPT):
         pooled_output = self.roberta(
             input_ids, attention_mask=attention_mask,token_type_ids=token_type_ids)[1]
 
-        logits = self.classifier(self.dropout(pooled_output))
+        if bias_features is None:
+            logits = self.classifier(self.dropout(pooled_output))
+        else:
+            logits = self.classifier(self.dropout(pooled_output + bias_features))
 
         if labels is None:
             return logits
@@ -94,7 +99,11 @@ class BertDistill(BertPreTrainedModel):
                 labels=None, bias=None, teacher_probs=None, bias_features=None):
         _, pooled_output = self.bert(
             input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
-        logits = self.classifier(self.dropout(pooled_output))
+        if bias_features is None:
+            logits = self.classifier(self.dropout(pooled_output))
+        else:
+            logits = self.classifier(self.dropout(pooled_output + bias_features))
+
         if labels is None:
             return logits
         loss = self.loss_fn.forward(pooled_output, logits, bias, teacher_probs, labels)

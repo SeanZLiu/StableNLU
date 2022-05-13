@@ -52,15 +52,17 @@ FEVER_LABEL_MAP = {"SUPPORTS": 0, "REFUTES": 1, "NOT ENOUGH INFO": 2}
 
 TextPairExample = namedtuple("TextPairExample", ["id", "premise", "hypothesis", "label"])
 
+
 def handle_shallow_feature(shallow_file_path,k):
+    """
+    该函数用来加载虚假特征文件，并按照对应数据集id:feature的形式存于字典中并输出
+    """
     load_features = pickle.load(open(shallow_file_path, 'rb'))
     shallow_features = {}
     # 利用命令行参数选择前k行，并平均后加入到新集合
     for key in load_features.keys():
         exam_feature = np.array(load_features[key][:k])
         shallow_features[key] = np.mean(exam_feature, 0)
-        #print(exam_feature.shape)
-        #print(shallow_features[key])
     return shallow_features
 
 def load_paws(is_train,n_samples=None) -> List[
@@ -515,19 +517,21 @@ def collate_input_features(batch: List[InputFeatures]):
         example_ids = torch.tensor([int(x.example_id) for x in batch])
     except:
         example_ids = torch.zeros(len(batch)).long()
+
+    # if 2 in example_ids:
+    #     if not exists('test_id_2_model_11.pkl'):
+    #         idx = example_ids.numpy().tolist().index(2)
+    #         res = shallow_feature.numpy().tolist()[idx]
+    #         a = {}
+    #         a[idx]=res
+    #         pickle.dump(a,open("test_id_2_model_11.pkl",'wb'))
+
     # todo
     #shallow_feature = torch.tensor([x.bias_features for x in batch])
     shallow_feature = torch.tensor([np.array(x.bias_features) for x in batch])
-
-    if 2 in example_ids:
-        if not exists('test_id_2_model_11.pkl'):
-            idx = example_ids.numpy().tolist().index(2)
-            res = shallow_feature.numpy().tolist()[idx]
-            a = {}
-            a[idx]=res
-            pickle.dump(a,open("test_id_2_model_11.pkl",'wb'))
-    # todo
-
+# todo 这里注意 可以多设立一个返回条件 这样就不需要再更改Exampleconverter然后再外塞一个 feature list了
+    if batch[0].bias_features is None:
+        return example_ids, input_ids, mask, segment_ids, label_ids
     if batch[0].bias is None:
         return example_ids, input_ids, mask, segment_ids, label_ids,shallow_feature
 
@@ -617,6 +621,7 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
 def simple_accuracy(preds, labels):
     return (preds == labels).mean()
 
+# 对于需要QQP任务除acc值之外还需要计算f1
 def acc_and_f1(preds, labels):
     acc = simple_accuracy(preds, labels)
     f1 = f1_score(y_true=labels, y_pred=preds)
