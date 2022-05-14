@@ -63,6 +63,7 @@ def handle_shallow_feature(shallow_file_path,k):
     for key in load_features.keys():
         exam_feature = np.array(load_features[key][:k])
         shallow_features[key] = np.mean(exam_feature, 0)
+
     return shallow_features
 
 def load_paws(is_train,n_samples=None) -> List[
@@ -635,7 +636,7 @@ def acc_and_f1(preds, labels):
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--linear", action='store_true',default=False, help="use linear net") 
+    parser.add_argument("--linear", action='store_true',default=False, help="use linear net")
     parser.add_argument("--task", default="mnli", type=str,help="mnli or fever or qqp")
     parser.add_argument("--get_bert_output", action='store_true',default=False)
     parser.add_argument("--gene_challenge",action='store_true',default=False)

@@ -75,12 +75,12 @@ def handle_shallow_feature(shallow_file_path,k):
     该函数用来加载虚假特征文件，并按照对应数据集id:feature的形式存于字典中并输出
     """
     load_features = pickle.load(open(shallow_file_path, 'rb'))
-    shallow_features = {}
+    shallow_features_map = {}
     # 利用命令行参数选择前k行，并平均后加入到新集合
     for key in load_features.keys():
         exam_feature = np.array(load_features[key][:k])
-        shallow_features[key] = np.mean(exam_feature, 0)
-    return shallow_features
+        shallow_features_map[key] = np.mean(exam_feature, 0)
+    return shallow_features_map
 
 def load_easy_hard(prefix="", no_mismatched=False):
     all_datasets = []
@@ -407,11 +407,20 @@ def collate_input_features(batch: List[InputFeatures]):
     except:
         example_ids = torch.zeros(len(batch)).long()
 
-    if batch[0].bias is None:
+    # todo 这里注意 可以多设立一个返回条件 这样就不需要再更改Exampleconverter然后再外塞
+    #  一个 feature list了，可以分为四种情况，训练：训shallow和训main，eval：也是
+    #  shallow和main，但eval的时候 shallow 和 main都是不需要添加bias feature
+    #  的，所以下面先通过bias判断一下是否为eval
+
+    if batch[0].bias is None:  # eval
         return example_ids, input_ids, mask, segment_ids, label_ids
+    # else train, two situations: with or without shallow feature
     teacher_probs = torch.tensor([x.teacher_probs for x in batch])
     bias = torch.tensor([x.bias for x in batch])
-
+    if batch[0].shallow_feature is not None:  # typically when training the main model
+        shallow_features = torch.tensor([x.shallow_feature for x in batch])
+        return example_ids, input_ids, mask, segment_ids, label_ids, bias, teacher_probs, shallow_features
+    # else, without shallow feature
     return example_ids, input_ids, mask, segment_ids, label_ids, bias, teacher_probs
 
 
@@ -504,17 +513,21 @@ def simple_accuracy(preds, labels):
 def main():
     parser = argparse.ArgumentParser()
 
-
-
     parser.add_argument("--model_type", default="roberta", type=str,
                         help="bert,roberta,ernie")
-    parser.add_argument("--get_bert_output", action='store_true',default=False)
-    parser.add_argument("--shallow_feature_file", type=str, help="the pkl file to save the shallow feature.")
+    parser.add_argument("--get_bert_output", action='store_true',default=False,
+                        help="set true if you want to generate shallow feature file.")
+    parser.add_argument("--shallow_feature_file", type=str, help="the path of the pkl file to save the shallow feature.")
     parser.add_argument("--get_logits", action='store_true',default=False)
     parser.add_argument("--logits_file", type=str, help="the pkl file to save logits.")
     parser.add_argument("--gene_challenge",action='store_true',default=False)
-
-
+    parser.add_argument("--task", default="mnli", type=str, help="mnli or fever or qqp")
+    parser.add_argument("--train_with_feature", action='store_true',default=False,
+                        help="set true if need to train model with shallow feature, typically when train the main model.")
+    parser.add_argument("--shallow_model_num",
+                        default=1,
+                        type=int,
+                        help="The number of shallow models used to train this main model.")
 
     ## Required parameters
     parser.add_argument("--bert_model", default="bert-base-uncased", type=str,
@@ -820,6 +833,15 @@ def main():
             train_features: List[InputFeatures] = convert_examples_to_auto_features(
                 train_examples, args.max_seq_length, tokenizer, args.n_processes)
 
+
+        # todo
+        if args.train_with_feature:
+            # todo 为main model的训练引入shallow feature
+            shallow_features_map = handle_shallow_feature(shallow_file_path=args.shallow_feature_file,
+                                                      k=args.shallow_model_num)
+            for fe in train_features:
+                fe.shallow_feature = shallow_features_map[fe.example_id] if fe.example_id in shallow_features_map.keys() else shallow_features_map[int(fe.example_id)]
+            # shallow_fea = torch.tensor(shallow_fea)
         if args.which_bias == "mix":
             hypo_bias_map = load_bias("hypo")
             hans_bias_map = load_bias("hans")
@@ -867,15 +889,18 @@ def main():
             for step, batch in enumerate(pbar):
                 batch = tuple(t.to(device) for t in batch)
                 if bias_map is not None:
-                    example_ids, input_ids, input_mask, segment_ids, label_ids, bias, teacher_probs = batch
+                    if args.train_with_feature:  # train with shallow features
+                        example_ids, input_ids, input_mask, segment_ids, label_ids, bias, teacher_probs, shallow_features = batch
+                    else:
+                        shallow_features = None
+                        example_ids, input_ids, input_mask, segment_ids, label_ids, bias, teacher_probs = batch
                 else:
                     bias = None
                     example_ids, input_ids, input_mask, segment_ids, label_ids = batch
 
-                # todo 不需修改
+                # todo 仅修改train的情况，已完成
                 logits, loss = model(input_ids, segment_ids, input_mask, label_ids, bias,
-                                     teacher_probs)
-                # todo
+                                     teacher_probs, bias_features=shallow_features)
 
                 total_steps += 1
                 loss_ema = loss_ema * decay + loss.cpu().detach().numpy() * (1 - decay)

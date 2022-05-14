@@ -3,7 +3,25 @@
     ·需要对比一下train_roberta.py和train_bert_features.py，在main model的训练中引入
     (此前修改已commit至 new branch second commit)
     ·后续可以把bert引用的库从pytorch_pretrained_bert更新为transformer，但该工作似乎优先
-    级较低。
+    级较低
     ·注意func目录下的各函数来自此前train的非main部分，分别用于加载数据、转换为feature、定
     义超参数
 
+5/13:
+    ·新分支第三次commit："newbran 3rd commit, add shallow feature to all class in
+    bert_distill.py, default None, add attribute shallow feature to
+    class InputFeatures default None, and ExampleConverter,
+    copy handle_shallow_features method from train_roberta_distill.py"
+    ·后续需要在训练时（如果为main model的训练）调用handle_shallow_features方法读取shallow
+    feature文件，eval时不要调用，并for循环为每个样本设置shallow_feature属性，随后需要在collate方法中设
+    置输出列表，对应train中不同情况（有shallow_feature和无sf）和eval需要的格式，对应的不
+    同情况也需要在命令行参数中设置对应选项
+    ·为了完成上面这一点，设置命令行参数train_with_feature，true的时候会添加shallow feature
+    ·应注意的是，修改后的bert_distill.py对应的forward方法，在训练中如果不传入shallow_feature，
+    则参数默认为None并且不会添加到线性层的输入中，若传入参数则会相加
+
+5/14:
+    ·新分支第四次commit："newbran 4th commit, add new args train_with_features, set true
+    if need to train model with shallow features, add for loop to set shallow_feature
+    attribute for each example on this situation, changed collate method to output different
+    type of list based on whether this attribute is None, and changed model input when training."
