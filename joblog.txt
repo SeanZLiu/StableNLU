@@ -25,3 +25,15 @@
     if need to train model with shallow features, add for loop to set shallow_feature
     attribute for each example on this situation, changed collate method to output different
     type of list based on whether this attribute is None, and changed model input when training."
+
+5/15:
+    ·在服务器调整修改了关于Roberta和ERNIE的训练文并进行训练，服务器端commit，已同步本地git仓库
+
+5/16:
+    ·分别得到RoBERTa和ERNIE作为main model的第一组结果，切换种子继续训练得到一组平均结果，注意学习率均为默认学习率，需要调整
+    ·后面分别训练一组shallow model，对比一下由bert和另外两个生成的shallow model抽取到的shallow feature对main model的训练效果有什么提升
+
+5/17:
+    ·已经用1e-5学习率训练了一组roberta的shallow model，开始用种子791训练main model，后续对比和bert feature的效果区别
+    ·ernie部分对应的结果并没有提高，可能是ernie main的学习率的问题
+    ·roberta获得了两组结果，ernie用3e-5得到了两组结果
