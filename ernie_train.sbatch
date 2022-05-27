@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH -J train                        
 #SBATCH -p compute                            
-#SBATCH -o ernie_train.out
+#SBATCH -o ernie_t.out
 #SBATCH -N 1                                 
 #SBATCH --cpus-per-task=4                    
 #SBATCH --mem-per-cpu=8G
 #SBATCH -t 36:00:00                          
-#SBATCH --gres=gpu:titan_xp:1      
+#SBATCH --gres=gpu:tesla_p100-pcie-16gb:1      
 
 source ~/.bashrc
 
@@ -36,10 +36,17 @@ cd /users5/kxiong/jsliu/emnlp2020-debiasing-unknown/src
 
 # 训练main model并eval，注意这里用的是bert得到的shallow feature文件
 
-for shallow_num in 1 3 5 7 9
+#for shallow_num in 1 3 5 7 9
+#do
+#CUDA_VISIBLE_DEVICES=0 python train_roberta_distill.py \
+#  --train_with_feature --model_type ernie --output_dir ../experiments_self_debias_mnli_seed111_different_shallow/ernie_main/ernie_seed555_bert_$shallow_num \
+#  --do_train --do_eval --mode none --custom_teacher ../teacher_preds/mnli_trained_on_sample2K_seed111.json\
+# --seed 555 --which_bias hans --task mnli --shallow_model_num $shallow_num --shallow_feature_file shallow_features/shallow_mnli_train_5epoch.pkl --learning_rate 5e-5
+#done
+for shallow_seed in 555 777
 do
 CUDA_VISIBLE_DEVICES=0 python train_roberta_distill.py \
-  --train_with_feature --model_type ernie --output_dir ../experiments_self_debias_mnli_seed111_different_shallow/ernie_main/ernie_seed791_bert_$shallow_num \
+  --model_type ernie --output_dir ../experiments_self_debias_mnli_seed111_different_shallow/ernie_main/ernie_baseline_$shallow_seed \
   --do_train --do_eval --mode none --custom_teacher ../teacher_preds/mnli_trained_on_sample2K_seed111.json\
- --seed 791 --which_bias hans --task mnli --shallow_model_num $shallow_num --shallow_feature_file shallow_features/shallow_mnli_train_5epoch.pkl
+ --seed $shallow_seed --which_bias hans --task mnli
 done
